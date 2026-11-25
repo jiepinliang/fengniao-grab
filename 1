@@ -1,0 +1,26 @@
+name: Build FNGrab
+on: [push, workflow_dispatch]
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: 下载工程并构建
+        run: |
+          curl -L -o p.zip https://raw.githubusercontent.com/jiepinliang/iptv-api/master/fengniao-grab-src.zip
+          unzip -q p.zip -d src
+          cd src/fengniao-grab
+          gradle assembleRelease --no-daemon
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          $BT/zipalign -f 4 "$APK" a.apk
+          keytool -genkeypair -keystore ks.jks -alias k -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=dev" -noprompt
+          $BT/apksigner sign --ks ks.jks --ks-pass pass:123456 --key-pass pass:123456 --out /tmp/FNGrab-signed.apk a.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: /tmp/FNGrab-signed.apk
